@@ -321,9 +321,9 @@ const AimTrainer = () => {
         <CustomCrosshair />
         {isMobile && (
           <>
-            <div className="absolute bottom-4 right-4 z-10">
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
               <button 
-                className="bg-red-500 rounded-full w-16 h-16 text-white opacity-50 active:opacity-100"
+                className="bg-red-500 rounded-full w-20 h-20 text-white opacity-50 active:opacity-100 shadow-lg flex items-center justify-center font-bold text-lg"
                 onTouchStart={handleShoot}
               >
                 FIRE
