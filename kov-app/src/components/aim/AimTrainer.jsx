@@ -5,7 +5,6 @@ import WeaponManager from './weapons/WeaponManager';
 import TargetManager from './targets/TargetManager';  // Add this import
 import { soundEffects } from '../../utils/soundEffects';
 import useSound from 'use-sound';
-import { Joystick } from 'react-joystick-component';
 
 const AimTrainer = () => {
   // Add sound hooks
@@ -17,6 +16,7 @@ const AimTrainer = () => {
   const [sceneReady, setSceneReady] = useState(false); // Add a new state to track scene readiness
   const [isMobile, setIsMobile] = useState(false);
   const [touching, setTouching] = useState(false);
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
   
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
@@ -170,11 +170,10 @@ const AimTrainer = () => {
     if (!cameraRef.current || !touching) return;
     
     const touch = event.touches[0];
-    const movementX = touch.clientX - (event.target.previousTouchX || touch.clientX);
-    const movementY = touch.clientY - (event.target.previousTouchY || touch.clientY);
+    const movementX = touch.clientX - touchStartPos.x;
+    const movementY = touch.clientY - touchStartPos.y;
     
-    event.target.previousTouchX = touch.clientX;
-    event.target.previousTouchY = touch.clientY;
+    setTouchStartPos({ x: touch.clientX, y: touch.clientY });
 
     const sensitivity = 0.002;
     const euler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -184,9 +183,11 @@ const AimTrainer = () => {
     euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x - movementY * sensitivity));
     
     cameraRef.current.quaternion.setFromEuler(euler);
-  }, [touching]);
+  }, [touching, touchStartPos]);
 
-  const handleTouchStart = useCallback(() => {
+  const handleTouchStart = useCallback((event) => {
+    const touch = event.touches[0];
+    setTouchStartPos({ x: touch.clientX, y: touch.clientY });
     setTouching(true);
   }, []);
 
@@ -298,7 +299,7 @@ const AimTrainer = () => {
       <div 
         ref={containerRef} 
         className={`relative ${isMobile ? 'w-full h-full' : 'w-4/5 h-4/5'} border border-gray-600 rounded-lg overflow-hidden`}
-        onClick={handleContainerClick}
+        onClick={!isMobile ? handleContainerClick : undefined}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -319,14 +320,19 @@ const AimTrainer = () => {
         )}
         <CustomCrosshair />
         {isMobile && (
-          <div className="absolute bottom-4 right-4 z-10">
-            <button 
-              className="bg-red-500 rounded-full w-16 h-16 text-white"
-              onTouchStart={handleShoot}
-            >
-              FIRE
-            </button>
-          </div>
+          <>
+            <div className="absolute bottom-4 right-4 z-10">
+              <button 
+                className="bg-red-500 rounded-full w-16 h-16 text-white opacity-50 active:opacity-100"
+                onTouchStart={handleShoot}
+              >
+                FIRE
+              </button>
+            </div>
+            <div className="absolute top-4 left-4 text-white text-sm opacity-70">
+              Drag to aim • Tap button to shoot
+            </div>
+          </>
         )}
       </div>
     </div>
