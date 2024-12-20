@@ -5,6 +5,7 @@ import WeaponManager from './weapons/WeaponManager';
 import TargetManager from './targets/TargetManager';  // Add this import
 import { soundEffects } from '../../utils/soundEffects';
 import useSound from 'use-sound';
+import { Joystick } from 'react-joystick-component';
 
 const AimTrainer = () => {
   // Add sound hooks
@@ -14,6 +15,8 @@ const AimTrainer = () => {
   const [score, setScore] = useState(0);
   const [misses, setMisses] = useState(0);
   const [sceneReady, setSceneReady] = useState(false); // Add a new state to track scene readiness
+  const [isMobile, setIsMobile] = useState(false);
+  const [touching, setTouching] = useState(false);
   
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
@@ -52,7 +55,10 @@ const AimTrainer = () => {
       antialias: true,
       alpha: true
     });
-    rendererRef.current.setSize(window.innerWidth * 0.8, window.innerHeight * 0.8);
+    rendererRef.current.setSize(
+      isMobile ? window.innerWidth : window.innerWidth * 0.8,
+      isMobile ? window.innerHeight : window.innerHeight * 0.8
+    );
     rendererRef.current.setPixelRatio(window.devicePixelRatio);
     containerRef.current.appendChild(rendererRef.current.domElement);
 
@@ -126,7 +132,7 @@ const AimTrainer = () => {
       }
       setSceneReady(false);
     };
-  }, []);
+  }, [isMobile]);
 
   // Add sound initialization
   useEffect(() => {
@@ -158,6 +164,35 @@ const AimTrainer = () => {
 
     cameraRef.current.quaternion.setFromEuler(euler);
   };
+
+  // Handle touch movement
+  const handleTouchMove = useCallback((event) => {
+    if (!cameraRef.current || !touching) return;
+    
+    const touch = event.touches[0];
+    const movementX = touch.clientX - (event.target.previousTouchX || touch.clientX);
+    const movementY = touch.clientY - (event.target.previousTouchY || touch.clientY);
+    
+    event.target.previousTouchX = touch.clientX;
+    event.target.previousTouchY = touch.clientY;
+
+    const sensitivity = 0.002;
+    const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+    euler.setFromQuaternion(cameraRef.current.quaternion);
+    
+    euler.y -= movementX * sensitivity;
+    euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x - movementY * sensitivity));
+    
+    cameraRef.current.quaternion.setFromEuler(euler);
+  }, [touching]);
+
+  const handleTouchStart = useCallback(() => {
+    setTouching(true);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    setTouching(false);
+  }, []);
 
   // Pointer lock handling
   useEffect(() => {
@@ -243,6 +278,16 @@ const AimTrainer = () => {
     return () => document.removeEventListener('click', handleClick);
   }, [handleShoot]);
 
+  useEffect(() => {
+    // Check if device is mobile
+    const checkMobile = () => {
+      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <div className="w-full h-screen flex flex-col items-center bg-gray-900 p-4">
       <div className="text-2xl mb-4 space-x-4 text-white">
@@ -252,8 +297,11 @@ const AimTrainer = () => {
 
       <div 
         ref={containerRef} 
-        className="relative w-4/5 h-4/5 border border-gray-600 rounded-lg overflow-hidden"
+        className={`relative ${isMobile ? 'w-full h-full' : 'w-4/5 h-4/5'} border border-gray-600 rounded-lg overflow-hidden`}
         onClick={handleContainerClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         {sceneReady && sceneRef.current && cameraRef.current && (
           <>
@@ -270,6 +318,16 @@ const AimTrainer = () => {
           </>
         )}
         <CustomCrosshair />
+        {isMobile && (
+          <div className="absolute bottom-4 right-4 z-10">
+            <button 
+              className="bg-red-500 rounded-full w-16 h-16 text-white"
+              onTouchStart={handleShoot}
+            >
+              FIRE
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
